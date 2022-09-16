@@ -60,7 +60,7 @@ ItemUsePtrTable:
 	dw UnusableItem      ; DOME_FOSSIL
 	dw UnusableItem      ; HELIX_FOSSIL
 	dw UnusableItem      ; SECRET_KEY
-	dw UnusableItem
+	dw ItemUseDebug      ; DEBUG
 	dw UnusableItem      ; BIKE_VOUCHER
 	dw ItemUseXAccuracy  ; X_ACCURACY
 	dw ItemUseEvoStone   ; LEAF_STONE
@@ -100,6 +100,13 @@ ItemUsePtrTable:
 	dw ItemUsePPRestore  ; MAX_ETHER
 	dw ItemUsePPRestore  ; ELIXER
 	dw ItemUsePPRestore  ; MAX_ELIXER
+	
+ItemUseDebug:
+    ld a, [wIsInBattle]
+    and a
+    ret nz
+    farcall DebugStart2
+    ret
 
 ItemUseBall:
 
