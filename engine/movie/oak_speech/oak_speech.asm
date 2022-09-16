@@ -43,6 +43,17 @@ OakSpeech:
 	call SetDefaultNames
 	predef InitPlayerData2
 	ld hl, wNumBoxItems
+	ld a, [hJoyHeld]
+	and SELECT
+	jr z, .normalMode
+	jp .debugMode
+.debugMode
+	ld a,DEBUG
+	ld [wcf91],a
+	ld a,1
+	ld [wItemQuantity],a
+	call AddItemToInventory ; give one debug
+.normalMode
 	ld a, POTION
 	ld [wcf91], a
 	ld a, 1

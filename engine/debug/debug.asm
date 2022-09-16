@@ -1,4 +1,4 @@
-DebugStart:
+DebugStart2:
 	xor a
 	call SwitchMenu
 
@@ -58,7 +58,7 @@ DerefPointer:
 	ld l,e
 	ld bc,DerefRets
 	push bc
-	jp [hl]
+	jp hl
 
 DerefRets:
 	pop af
@@ -217,7 +217,7 @@ SwitchMenu_L1:
 	pop hl
 	ld bc,SwitchMenuBack
 	push bc
-	jp [hl]
+	jp hl
 
 SwitchMenuBack:
 	ret
