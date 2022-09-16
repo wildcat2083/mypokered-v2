@@ -3151,6 +3151,9 @@ wEXPBarNeededEXP::    ds 3
 wEXPBarKeepFullFlag:: ds 1
 ENDC
 
+wDebugMenuID::          ds 1
+wDebugMenuCursorPos::   ds 1
+wDebugMenuParam::       ds 1
 
 SECTION "Stack", WRAM0
 
