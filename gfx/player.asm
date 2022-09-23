@@ -1,5 +1,6 @@
 IF GEN_2_GRAPHICS
-RedPicFront:: INCBIN "gfx/gstrainers/red.pic"
+RedPicFront::  INCBIN "gfx/gstrainers/red.pic"
+LeafPicFront:: INCBIN "gfx/gstrainers/leaf.pic"
 rept 11 ; Padding
 	db 0
 endr
