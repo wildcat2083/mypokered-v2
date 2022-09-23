@@ -1990,6 +1990,11 @@ RunMapScript::
 
 LoadWalkingPlayerSpriteGraphics::
 	ld de, RedSprite
+	ld a, [wPlayerGender]
+    and a
+    jr z, .AreGuy1
+    ld de,LeafSprite
+.AreGuy1
 	ld hl, vNPCSprites
 	jr LoadPlayerSpriteGraphicsCommon
 
@@ -2000,6 +2005,11 @@ LoadSurfingPlayerSpriteGraphics::
 
 LoadBikePlayerSpriteGraphics::
 	ld de, RedBikeSprite
+	ld a, [wPlayerGender]
+    and a
+    jr z, .AreGuy2
+    ld de,LeafBikeSprite
+.AreGuy2
 	ld hl, vNPCSprites
 
 LoadPlayerSpriteGraphicsCommon::

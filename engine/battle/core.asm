@@ -6318,10 +6318,16 @@ SwapPlayerAndEnemyLevels:
 ; (for use when scrolling the player sprite and enemy's silhouettes on screen)
 LoadPlayerBackPic:
 	ld a, [wBattleType]
-	dec a ; is it the old man tutorial?
-	ld de, RedPicBack
-	jr nz, .next
-	ld de, OldManPicBack
+	dec a
+    ld de, OldManPicBack
+    jr z, .next
+    ld a, [wPlayerGender]
+    and a
+    jr z, .RedBack
+    ld de, LeafPicBack
+    jr .next
+.RedBack
+    ld de, RedPicBack
 .next
 	ld a, BANK(RedPicBack)
 	call UncompressSpriteFromDE

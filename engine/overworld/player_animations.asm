@@ -380,12 +380,29 @@ FishingAnim:
 	call DelayFrames
 	ld hl, wd736
 	set 6, [hl] ; reserve the last 4 OAM entries
+	ld a, [wPlayerGender] ; added gender check
+    and a      ; added gender check
+    jr z, .BoySpriteLoad
+    ld de, LeafSprite
+    ld hl, vNPCSprites
+    ld bc, (BANK(LeafSprite) << 8) + $0c
+    jr .KeepLoadingSpriteStuff
+.BoySpriteLoad
 	ld de, RedSprite
 	ld hl, vNPCSprites tile $00
 	lb bc, BANK(RedSprite), 12
+.KeepLoadingSpriteStuff
 	call CopyVideoData
+	 ld a, [wPlayerGender] ; added gender check
+    and a      ; added gender check
+    jr z, .BoyTiles ; skip loading Leaf's stuff if you're Red
 	ld a, $4
+	ld hl, LeafFishingTiles
+    jr .ContinueRoutine ; go back to main routine after loading Leaf's stuff
+.BoyTiles ; alternately, load Red's stuff
+    ld a, $4
 	ld hl, RedFishingTiles
+.ContinueRoutine
 	call LoadAnimSpriteGfx
 	ld a, [wSpritePlayerStateData1ImageIndex]
 	ld c, a
@@ -476,7 +493,7 @@ FishingRodOAM:
 	dbsprite 11, 10,  0,  0, $fe, OAM_HFLIP ; right
 
 fishing_gfx: MACRO
-	dw \1
+	dw \2
 	db \2
 	db BANK(\1)
 	dw vNPCSprites tile \3
@@ -487,6 +504,12 @@ RedFishingTiles:
 	fishing_gfx RedFishingTilesBack,  2, $06
 	fishing_gfx RedFishingTilesSide,  2, $0a
 	fishing_gfx RedFishingRodTiles,   3, $fd
+	
+LeafFishingTiles:
+	fishing_gfx LeafFishingTilesFront, 2, $02
+	fishing_gfx LeafFishingTilesBack,  2, $06
+	fishing_gfx LeafFishingTilesSide,  2, $0a
+	fishing_gfx RedFishingRodTiles,    3, $fd
 
 _HandleMidJump::
 	ld a, [wPlayerJumpingYScreenCoordsIndex]

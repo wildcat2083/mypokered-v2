@@ -76,6 +76,12 @@ ENDC
 	;ld a, [wd732]
 	;bit 1, a ; possibly a debug mode bit
 	;jp nz, .skipChoosingNames
+	ld hl,BoyGirlText  ; added to the same file as the other oak text
+    call PrintText     ; show this text
+    call BoyGirlChoice ; added routine at the end of this file
+    ld a, [wCurrentMenuItem]
+    ld [wPlayerGender], a ; store player's gender. 00 for boy, 01 for girl
+    call ClearScreen ; clear the screen before resuming normal intro
 	ld de, ProfOakPic
 	lb bc, BANK(ProfOakPic), $00
 	call IntroDisplayPicCenteredOrUpperRight
@@ -98,6 +104,12 @@ ENDC
 	call GetRedPalID ; HAX
 	ld de, RedPicFront
 	lb bc, BANK(RedPicFront), $00
+	ld a, [wPlayerGender] ; check gender
+	and a      ; check gender
+    jr z, .NotLeaf1
+    ld de,LeafPicFront
+    lb bc, Bank(LeafPicFront), $00
+.NotLeaf1:
 	call IntroDisplayPicCenteredOrUpperRight
 	call MovePicLeft
 	ld hl, IntroducePlayerText
@@ -117,6 +129,12 @@ ENDC
 	call GetRedPalID ; HAX
 	ld de, RedPicFront
 	lb bc, BANK(RedPicFront), $00
+	ld a, [wPlayerGender] ; check gender
+    and a      ; check gender
+    jr z, .NotLeaf2
+    ld de,LeafPicFront
+    lb bc, Bank(LeafPicFront), $00
+.NotLeaf2:
 	call IntroDisplayPicCenteredOrUpperRight
 	call GBFadeInFromWhite
 	ld a, [wd72d]
@@ -137,6 +155,12 @@ ENDC
 	ld de, RedSprite
 	ld hl, vSprites
 	lb bc, BANK(RedSprite), $0C
+	ld a, [wPlayerGender] ; check gender
+    and a      ; check gender
+    jr z, .NotLeaf3
+    ld de,LeafSprite
+    lb bc, BANK(LeafSprite), $0C
+.NotLeaf3:
 	call CopyVideoData
 	ld de, ShrinkPic1
 	lb bc, BANK(ShrinkPic1), $00
@@ -181,6 +205,7 @@ OakSpeechText2:
 	sound_cry_nidorina
 	text_far _OakSpeechText2B
 	text_end
+
 IntroducePlayerText:
 	text_far _IntroducePlayerText
 	text_end
@@ -190,7 +215,9 @@ IntroduceRivalText:
 OakSpeechText3:
 	text_far _OakSpeechText3
 	text_end
-
+BoyGirlText: ; This is new so we had to add a reference to get it to compile
+    text_far _BoyGirlText
+    text_end
 FadeInIntroPic:
 	ld hl, IntroFadePalettes
 	ld b, 6
@@ -252,3 +279,22 @@ IntroDisplayPicCenteredOrUpperRight:
 	xor a
 	ldh [hStartTileID], a
 	predef_jump CopyUncompressedPicToTilemap
+
+; displays boy/girl choice
+BoyGirlChoice::
+    call SaveScreenTilesToBuffer1
+    call InitBoyGirlTextBoxParameters
+    jr DisplayBoyGirlChoice
+    
+InitBoyGirlTextBoxParameters::
+    ld a, $1 ; loads the value for the unused North/West choice, that was changed to say Boy/Girl
+    ld [wTwoOptionMenuID], a
+    coord hl, 13, 7 
+    ld bc, $80e
+    ret
+    
+DisplayBoyGirlChoice::
+    ld a, $14
+    ld [wTextBoxID], a
+    call DisplayTextBoxID
+    jp LoadScreenTilesFromBuffer1

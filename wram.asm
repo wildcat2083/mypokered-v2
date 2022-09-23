@@ -2822,7 +2822,11 @@ wRoute18Gate1FCurScript::
 	ds 78
 wGameProgressFlagsEnd::
 
-	ds 56
+	;ds 56
+wPlayerGender::
+    ds 1
+    
+    ds 55
 
 wObtainedHiddenItemsFlags::
 	ds 14
