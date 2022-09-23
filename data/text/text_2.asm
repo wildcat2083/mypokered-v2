@@ -1,3 +1,7 @@
+_BoyGirlText::
+    text "Play as a boy, or"
+    line "as a girl?"
+    done
 _AIBattleWithdrawText::
 	text_ram wTrainerName
 	text " with-"

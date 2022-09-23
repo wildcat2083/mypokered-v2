@@ -354,6 +354,8 @@ INCLUDE "engine/gfx/palettes.asm"
 SECTION "Engine Save", ROMX
 
 INCLUDE "engine/menus/save.asm"
+INCLUDE "engine/items/tm_prices.asm"
+INCLUDE "engine/overworld/elevator.asm"
  
 BlackTile:
 	REPT 16
@@ -393,8 +395,8 @@ INCLUDE "data/moves/animations.asm"
 INCLUDE "data/battle_anims/subanimations.asm"
 INCLUDE "data/battle_anims/frame_blocks.asm"
 INCLUDE "engine/movie/evolution.asm"
-INCLUDE "engine/overworld/elevator.asm"
-INCLUDE "engine/items/tm_prices.asm"
+; elevator was here >>>> INCLUDE "engine/overworld/elevator.asm"
+; tm_prices.asm was here >>>> INCLUDE "engine/items/tm_prices.asm"
 
 INCLUDE "color/animations.asm"
 
