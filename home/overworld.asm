@@ -282,19 +282,23 @@ OverworldLoopLessDelay::
 	ld a, [wd736]
 	bit 6, a ; jumping a ledge?
 	jr nz, .normalPlayerSpriteAdvancement
+    ld a, [hJoyHeld]
+	and B_BUTTON
+	jr z, .notMachBike
 	call DoBikeSpeedup
-	
+	call DoBikeSpeedup
+.notMachBike
+    call DoBikeSpeedup
+    jr .notRunning
 .normalPlayerSpriteAdvancement
-    ld a, [wWalkBikeSurfState]
+	ld a, [wWalkBikeSurfState]
 	cp $02
 	jr z, .surfFaster
 	ld a, [hJoyHeld]
 	and B_BUTTON
 	jr z, .notRunning
-	
 .surfFaster
 	call DoBikeSpeedup
-	
 .notRunning
 	call AdvancePlayerSprite
 	ld a, [wWalkCounter]
