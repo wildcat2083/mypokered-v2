@@ -10,9 +10,16 @@ RedsHouse1FMomText:
 	ld a, [wd72e]
 	bit 3, a ; received a Pokémon from Oak?
 	jr nz, .heal
+	ld a, [wPlayerGender]
+	and a
+	jr nz, .girl
 	ld hl, MomWakeUpText
 	call PrintText
 	jr .done
+.girl
+    ld hl,MomWakeUpText2
+    call PrintText
+    jr .done
 .heal
 	call MomHealPokemon
 .done
@@ -21,6 +28,9 @@ RedsHouse1FMomText:
 MomWakeUpText:
 	text_far _MomWakeUpText
 	text_end
+MomWakeUpText2:
+    text_far _MomWakeUpText2
+    text_end
 
 MomHealPokemon:
 	ld hl, MomHealText1
@@ -55,14 +65,29 @@ RedsHouse1FTVText:
 	cp SPRITE_FACING_UP
 	ld hl, TVWrongSideText
 	jr nz, .got_text
+	ld a, [wPlayerGender]
+	and a
+	jr nz, .girl2
 	ld hl, StandByMeText
+	call PrintText
+	jr .done
+.girl2
+    ld hl,WizOfOzText
+    call PrintText
+    jr .done
 .got_text
 	call PrintText
 	jp TextScriptEnd
+.done
+    jp TextScriptEnd
 
 StandByMeText:
 	text_far _StandByMeText
 	text_end
+
+WizOfOzText:
+    text_far _WizOfOzText
+    text_end
 
 TVWrongSideText:
 	text_far _TVWrongSideText

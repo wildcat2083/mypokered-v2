@@ -9,6 +9,17 @@ _MomWakeUpText::
 	cont "for you."
 	done
 
+_MomWakeUpText2::
+    text "MOM: Right."
+	line "All girls leave"
+	cont "home some day."
+	cont "It said so on TV."
+
+	para "PROF.OAK, next"
+	line "door, is looking"
+	cont "for you."
+	done
+	
 _MomHealText1::
 	text "MOM: <PLAYER>!"
 	line "You should take a"
@@ -31,6 +42,15 @@ _StandByMeText::
 
 	para "I better go too."
 	done
+
+_WizOfOzText::
+    text "There's a movie"
+    line "on TV. Lions and"
+    cont "tigers and Bears"
+    cont "Oh My!!!"
+    
+    para "I better go too."
+    done
 
 _TVWrongSideText::
 	text "Oops, wrong side."
