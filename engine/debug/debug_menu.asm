@@ -61,7 +61,7 @@ DebugPlayerName:
 	db "Tom@"
 
 DebugRivalName:
-	db "Juerry@"
+	db "Jerry@"
 
 DebugMenuOptions:
 	db   "FIGHT"
