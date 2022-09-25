@@ -1,5 +1,5 @@
-roms := pokered.gbc pokeblue.gbc pokeblue_debug.gbc pokered_debug.gbc
-#roms := pokered.gbc pokeblue.gbc
+#roms := pokered.gbc pokeblue.gbc pokeblue_debug.gbc pokered_debug.gbc
+roms := pokered.gbc pokeblue.gbc
 
 rom_obj := \
 audio.o \
@@ -26,7 +26,7 @@ else
 SHA1 := sha1sum
 endif
 
-RGBDS   ?= tools/rgbds/
+RGBDS   ?=
 RGBASM  ?= $(RGBDS)rgbasm
 RGBFIX  ?= $(RGBDS)rgbfix
 RGBGFX  ?= $(RGBDS)rgbgfx
