@@ -1,5 +1,7 @@
 #roms := pokered.gbc pokeblue.gbc pokeblue_debug.gbc pokered_debug.gbc
-roms := pokered.gbc pokeblue.gbc
+#roms := pokered.gbc pokeblue.gbc
+
+
 
 rom_obj := \
 audio.o \
