@@ -5,13 +5,15 @@ Running Shoes
 Facing NPC Script
 and more
 
-Will be Creating a Release of the non-debug versions
+the debug version has an cheat built in using the select button in the title screen
+the non version does not include this function
 
-the debug version does have a cheat built in using the select button in the title screen
+Requires rgbds v0.4.2
+github.com gbdev/rgbds.git
+git checkout v0.4.2
+make
 
-Also Note
-this takes rgbds 0.4.2
+either link to or install
+sudo make install
 
-git checkout v0.4.2 helps after cloning the appropiorate repo
 I may end up putting an installer in this like I did for version 1
- test
