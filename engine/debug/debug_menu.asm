@@ -64,8 +64,8 @@ DebugRivalName:
 	db "Jerry@"
 
 DebugMenuOptions:
-	db   "FIGHT"
-	next "DEBUG@"
+	db   "BATTLE"
+	next "GOD MODE@"
 ELSE
 	ret
 ENDC
