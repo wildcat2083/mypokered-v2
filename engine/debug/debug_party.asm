@@ -1,40 +1,3 @@
-; This function is a debugging feature to give the player Tsunekazu Ishihara's
-; favorite Pokemon. This is indicated by the overpowered Exeggutor, which
-; Ishihara (president of Creatures Inc.) said was his favorite Pokemon in an ABC
-; interview on February 8, 2000.
-; "Exeggutor is my favorite. That's because I was always using this character
-; while I was debugging the program."
-; http://www.ign.com/articles/2000/02/09/abc-news-pokamon-chat-transcript
-
-SetIshiharaTeam:
-	ld de, IshiharaTeam
-.loop
-	ld a, [de]
-	cp -1
-	ret z
-	ld [wcf91], a
-	inc de
-	ld a, [de]
-	ld [wCurEnemyLVL], a
-	inc de
-	call AddPartyMon
-	jr .loop
-
-IshiharaTeam:
-	db EXEGGUTOR, 90
-IF DEF(_DEBUG)
-	db MEW, 5
-ELSE
-	db MEW, 20
-ENDC
-	db JOLTEON, 56
-	db DUGTRIO, 56
-	db ARTICUNO, 57
-IF DEF(_DEBUG)
-	db PIKACHU, 5
-ENDC
-	db -1 ; end
-
 DebugStart:
 IF DEF(_DEBUG)
 	xor a ; PLAYER_PARTY_DATA
@@ -48,51 +11,6 @@ IF DEF(_DEBUG)
 	; Get all badges except Earth Badge.
 	ld a, $ff ^ (1 << BIT_EARTHBADGE)
 	ld [wObtainedBadges], a
-
-	call SetIshiharaTeam
-
-	; Exeggutor gets four HM moves.
-	ld hl, wPartyMon1Moves
-	ld a, FLY
-	ld [hli], a
-	ld a, CUT
-	ld [hli], a
-	ld a, SURF
-	ld [hli], a
-	ld a, STRENGTH
-	ld [hl], a
-	ld hl, wPartyMon1PP
-	ld a, 15
-	ld [hli], a
-	ld a, 30
-	ld [hli], a
-	ld a, 15
-	ld [hli], a
-	ld [hl], a
-
-	; Jolteon gets Thunderbolt.
-	ld hl, wPartyMon3Moves + 3
-	ld a, THUNDERBOLT
-	ld [hl], a
-	ld hl, wPartyMon3PP + 3
-	ld a, 15
-	ld [hl], a
-
-	; Articuno gets Fly.
-	ld hl, wPartyMon5Moves
-	ld a, FLY
-	ld [hl], a
-	ld hl, wPartyMon5PP
-	ld a, 15
-	ld [hl], a
-
-	; Pikachu gets Surf.
-	ld hl, wPartyMon6Moves + 2
-	ld a, SURF
-	ld [hl], a
-	ld hl, wPartyMon6PP + 2
-	ld a, 15
-	ld [hl], a
 
 	; Get some debug items.
 	ld hl, wNumBagItems
@@ -110,13 +28,6 @@ IF DEF(_DEBUG)
 	jr .items_loop
 .items_end
 
-	; Complete the Pokédex.
-	ld hl, wPokedexOwned
-	call DebugSetPokedexEntries
-	ld hl, wPokedexSeen
-	call DebugSetPokedexEntries
-	SetEvent EVENT_GOT_POKEDEX
-
 	; Rival chose Squirtle,
 	; Player chose Charmander.
 	ld hl, wRivalStarter
@@ -126,16 +37,6 @@ IF DEF(_DEBUG)
 	ld a, STARTER1
 	ld [hl], a
 
-	ret
-
-DebugSetPokedexEntries:
-	ld b, wPokedexOwnedEnd - wPokedexOwned - 1
-	ld a, %11111111
-.loop
-	ld [hli], a
-	dec b
-	jr nz, .loop
-	ld [hl], %01111111
 	ret
 
 DebugItemsList:
