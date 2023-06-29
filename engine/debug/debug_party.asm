@@ -1,7 +1,49 @@
+SetGodmodeTeam:
+	ld de, GodmodeTeam
+.loop
+	ld a, [de]
+	cp -1
+	ret z
+	ld [wcf91], a
+	inc de
+	ld a, [de]
+	ld [wCurEnemyLVL], a
+	inc de
+	call AddPartyMon
+	jr .loop
+	
+GodmodeTeam:
+	db MEW, 5
+	db VULPIX, 5
+	db PIKACHU, 5
+	db MEWTWO, 5
+	db ARTICUNO, 5
+	db -1
+
 DebugStart:
 IF DEF(_DEBUG)
 	xor a ; PLAYER_PARTY_DATA
 	ld [wMonDataLocation], a
+	
+	call SetGodmodeTeam
+	
+	ld hl, wPartyMon1Moves
+	ld a, FLY
+	ld [hli], a
+	ld a, CUT
+	ld [hli], a
+	ld a, SURF
+	ld [hli], a
+	ld a, STRENGTH
+	ld [hl], a
+	ld hl, wPartyMon1PP
+	ld a, 15
+	ld [hli], a
+	ld a, 30
+	ld [hli], a
+	ld a, 15
+	ld [hli], a
+	ld [hl], a
 
 	; Fly anywhere.
 	dec a ; $ff
@@ -59,3 +101,4 @@ DebugUnusedList:
 ELSE
 	ret
 ENDC
+
