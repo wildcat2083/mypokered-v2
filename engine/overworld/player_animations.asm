@@ -385,7 +385,7 @@ FishingAnim:
     jr z, .BoySpriteLoad
     ld de, LeafSprite
     ld hl, vNPCSprites
-    ld bc, (BANK(LeafSprite) << 8) + $0c
+    lb bc, BANK(LeafSprite), 12
     jr .KeepLoadingSpriteStuff
 .BoySpriteLoad
 	ld de, RedSprite
@@ -493,7 +493,7 @@ FishingRodOAM:
 	dbsprite 11, 10,  0,  0, $fe, OAM_HFLIP ; right
 
 fishing_gfx: MACRO
-	dw \2
+	dw \1
 	db \2
 	db BANK(\1)
 	dw vNPCSprites tile \3
