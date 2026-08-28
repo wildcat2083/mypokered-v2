@@ -57,7 +57,6 @@ ROMX $4
 	"Battle Engine 1"
 ROMX $5
 	"NPC Sprites 2"
-	"Battle Engine 2"
 ROMX $6
 	"Maps 1"
 	"Play Time"
@@ -201,6 +200,8 @@ ROMX $2B
 ROMX $2C
 	"bank2C"
 	"Move Names"
+ROMX $2D
+	"Battle Engine 2"
 ROMX $31
 	"bank31"
 ROMX $32

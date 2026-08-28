@@ -118,7 +118,7 @@ EXPBarGraphicsEnd:
 ENDC
 
 
-SECTION "Battle Engine 2", ROMX
+SECTION "Battle Engine 2", ROMX, BANK[45]
 
 INCLUDE "engine/gfx/load_pokedex_tiles.asm"
 INCLUDE "engine/overworld/map_sprites.asm"

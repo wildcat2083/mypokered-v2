@@ -931,9 +931,25 @@ OaksLabMonChoiceMenu:
 	set 3, [hl]
 	ld a, $fc
 	ld [wJoyIgnore], a
-	CheckEvent EVENT_GOT_STARTER
-	jr nz, .skipReplayingRivalReveal ; already got a starter before this pick, so don't replay
-	                                 ; the walk-and-reveal sequence or re-set the flag below
+	ld a, [wPartyCount] ; wPartyCount was just incremented by AddPartyMon above.
+	cp 2                ; If it's still 1, this genuinely was the first-ever starter pick, so play
+	jr c, .doReplay      ; the walk-and-reveal sequence and set EVENT_GOT_STARTER as normal. If it's
+	                     ; 2 or more, this is an extra pick (only reachable via the save editor's
+	                     ; Unlock All 3 Starters toggle clearing the block) -- skip the reveal replay
+	                     ; and the flag re-set, and deliberately leave wOaksLabCurScript untouched:
+	                     ; it already holds whatever state let the player walk up and interact with
+	                     ; this ball in the first place, so that state is safe to keep. Jumping it
+	                     ; forward to script $a was tried and was wrong -- that script actively
+	                     ; waits for the player to reach a specific map position and then triggers
+	                     ; the "rival wants to battle" cutscene, so it would have replayed that
+	                     ; instead. The one real side effect that does need restoring by hand is
+	                     ; joypad input: it was just masked to $fc above, and only the (skipped)
+	                     ; reveal sequence would normally clear it back to 0. Skipping the reveal
+	                     ; without restoring this is what froze the game on the second pick.
+	xor a
+	ld [wJoyIgnore], a
+	jr .skipReplayingRivalReveal
+.doReplay
 	ld a, $8
 	ld [wOaksLabCurScript], a
 .skipReplayingRivalReveal

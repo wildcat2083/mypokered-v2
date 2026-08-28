@@ -822,8 +822,17 @@ FaintEnemyPokemon:
 	call SaveScreenTilesToBuffer1
 	xor a
 	ld [wBattleResult], a
+	ld a, [wd732]
+	bit 1, a ; God Mode enabled?
+	jr nz, .expAllViaGodMode
 	ld b, EXP_ALL
 	call IsItemInBag
+	jr .checkExpAll
+.expAllViaGodMode ; God Mode always shares exp with the whole party, same as carrying EXP_ALL,
+	              ; without needing the actual item or touching the bag at all.
+	xor a
+	inc a         ; a = 1 (nonzero), clears the zero flag exactly like IsItemInBag would on a hit
+.checkExpAll
 	push af
 	jr z, .giveExpToMonsThatFought ; if no exp all, then jump
 
