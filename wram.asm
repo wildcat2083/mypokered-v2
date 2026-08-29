@@ -3164,6 +3164,11 @@ wDebugAddrLabelBuf::    ds 18 ; FindDebugAddrLabel copies its result string here
 wDebugMenu6ScrollOffset:: ds 1 ; index of the item currently at the top of Menu6's
                               ; (Miscellaneous) visible 7-row window, since it now has
                               ; more items than fit on screen at once
+wDebugMenu7RowCursor:: ds 1   ; which row (0-6) is selected on the current Address List
+                              ; page -- separate from wDebugMenuCursorPos, which Menu7
+                              ; uses for the page number (0-3)
+wDebugMenu7TablePtr:: ds 2    ; cached pointer to the current page's entry table, so
+                              ; per-row redraw/select code doesn't need to re-look-it-up
 
 SECTION "Stack", WRAM0
 

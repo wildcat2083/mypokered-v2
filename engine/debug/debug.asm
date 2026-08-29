@@ -1146,7 +1146,7 @@ Menu6PrintItemByIndex:
 Menu6RedrawOneRow:
 	push bc
 	ld a,$7f
-	ld c,$11
+	ld c,$10
 	push hl
 .clearLoop
 	ld [hli],a
@@ -1323,70 +1323,253 @@ Menu6Cursor7:
 	jr Menu6Finish
 
 Menu7Properties:
-	ld bc,SwitchMenuBack   ; [UP]
-	ld bc,SwitchMenuBack ; [DOWN]
+	ld bc,Menu7CursorUp   ; [UP]
+	ld bc,Menu7CursorDown ; [DOWN]
 	ld bc,Menu7TurnL ; [LEFT]
 	ld bc,Menu7TurnR ; [RIGHT]
 	ld bc,BackToMain ; [B]
-	ld bc,SwitchMenuBack   ; [A]
+	ld bc,Menu7Perform   ; [A]
 	ld bc,Menu7Constructor ; .ctor
 	ld bc,Menu7Desc1 ; desc1
 
 Menu7Constructor:
 	xor a
 	ld [wDebugMenuCursorPos], a ; page at 0
+	ld [wDebugMenu7RowCursor], a ; row selection at 0
 	call MenuCursorRedraw
-	ld hl,Menu7Text1
-	coord de, 3, 4
-	call PutStringMultiline
-	ret
+	jp Menu7Redraw
 
 Menu7Desc1:
-	db "Left/Right - page",$0a,$0a
+	db $0d,"L/R: Change page",$0a
+	db "U/D: Select",$0a
+	db "A: View in Hex",$0a
 	db "B Button: Cancel",$00
 
-Menu7Texts:
-	ld bc,Menu7Text1
-	ld bc,Menu7Text2
-	ld bc,Menu7Text3
-	ld bc,Menu7Text4
-	;   ----------------
+; Each page is a small table of (address, label pointer) pairs instead of one
+; static text blob, so Menu7Redraw can print just this page's entries and
+; Menu7Perform can look up the selected one's real address to jump to.
+Menu7PageTablePtrs:
+	dw Menu7Page1Table
+	dw Menu7Page2Table
+	dw Menu7Page3Table
+	dw Menu7Page4Table
 
-Menu7Text1:
-	db "C000: Sound I/O ",$0a
-	db "C100: SpriteData",$0a
-	db "CC28: Menu keys ",$0a
-	db "CFC6: Battle nfo",$0a
-	db "CF7A: Mart items",$0a
-	db "D058: Encounter ",$0a
-	db "D163: Party ()  ",$00
+Menu7PageCounts:
+	db 7, 7, 5, 7
 
-Menu7Text2:
-	db "D31D: Item count",$0a
-	db "D356: Cur badges",$0a
-	db "D361: X/Y coords",$0a
-	db "D36E: Map script",$0a
-	db "D53A: Items box ",$0a
-	db "D888: Wild data ",$0a
-	db "DA80: () in box ",$00
+Menu7Page1Table:
+	dw $C000, .l0
+	dw $C100, .l1
+	dw $CC28, .l2
+	dw $CFC6, .l3
+	dw $CF7A, .l4
+	dw $D058, .l5
+	dw $D163, .l6
+.l0: db "Sound I/O",0
+.l1: db "Sprites",0
+.l2: db "Menu keys",0
+.l3: db "BattleNfo",0
+.l4: db "MartItems",0
+.l5: db "Encounter",0
+.l6: db "Party",0
 
-Menu7Text3:
-	db "1st () settings:",$0a
-	db "D18C: Level     ",$0a
-	db "D172: Moveset   ",$0a
-	db "D188: PP        ",$0a
-	db "D18F: Stats     ",$0a
-	db "----------------",$0a
-	db "D747: Evt flags ",$00
+Menu7Page2Table:
+	dw $D31D, .l0
+	dw $D356, .l1
+	dw $D361, .l2
+	dw $D36E, .l3
+	dw $D53A, .l4
+	dw $D888, .l5
+	dw $DA80, .l6
+.l0: db "ItemCount",0
+.l1: db "Badges",0
+.l2: db "XYCoords",0
+.l3: db "MapScrpt",0
+.l4: db "Items box",0
+.l5: db "Wild data",0
+.l6: db "BoxMonCnt",0
 
-Menu7Text4:
-	db "C3A0: ScreenData",$0a
-	db "CD80: Screen buf",$0a
-	db "CF4B: Last name ",$0a
-	db "D05C: Team ID   ",$0a
-	db "D12B: Textbox ID",$0a
-	db "D158: PlayerName",$0a
-	db "D34A: Rival name",$00
+Menu7Page3Table:
+	dw $D18C, .l0
+	dw $D172, .l1
+	dw $D188, .l2
+	dw $D18F, .l3
+	dw $D747, .l4
+.l0: db "1MonLevel",0
+.l1: db "1MonMoves",0
+.l2: db "1MonPP",0
+.l3: db "1MonStats",0
+.l4: db "EvtFlags",0
+
+Menu7Page4Table:
+	dw $C3A0, .l0
+	dw $CD80, .l1
+	dw $CF4B, .l2
+	dw $D05C, .l3
+	dw $D12B, .l4
+	dw $D158, .l5
+	dw $D34A, .l6
+.l0: db "ScreenDat",0
+.l1: db "ScreenBuf",0
+.l2: db "Last name",0
+.l3: db "Team ID",0
+.l4: db "TextboxID",0
+.l5: db "PlayerNam",0
+.l6: db "RivalName",0
+
+; in: hl = pointer to a 4-byte entry (addr_lo, addr_hi, label_lo, label_hi)
+;     de = screen destination for "AAAA: label"
+; out: prints "AAAA: label" starting at [de]
+; clobbers: a, b, c, d, e, hl
+Menu7PrintEntry:
+	ld a, [hli]
+	ld c, a
+	ld a, [hli]
+	push hl ; entry pointer, now at label_lo -- needed last
+	push bc ; addr_lo (in c) -- needed second
+	push de
+	pop hl  ; hl = destination
+	call WriteDblHexExpr ; a is still addr_hi (untouched by the pushes above)
+	pop bc
+	ld a, c ; addr_lo
+	call WriteDblHexExpr
+	ld [hl], $9c
+	inc hl
+	ld [hl], $7f
+	inc hl
+	ld d, h
+	ld e, l ; de = label destination
+	pop hl  ; entry pointer (at label_lo)
+	ld a, [hli]
+	ld h, [hl]
+	ld l, a ; hl = the actual label string pointer
+.printLoop
+	ld a, [hli]
+	and a
+	ret z
+	ld [de], a
+	inc de
+	jr .printLoop
+
+; in: hl = screen position (row start, arrow column), b = row index (0-6)
+; out: clears the row, and prints this page's entry at that index if one
+;      exists (fewer than 7 entries on page 3, so some rows stay blank)
+; clobbers: a, b, c, d, e, hl
+Menu7RedrawOneRow:
+	push bc
+	ld a,$7f
+	ld c,$10
+	push hl
+.clearLoop
+	ld [hli],a
+	dec c
+	jr nz,.clearLoop
+	pop hl
+	inc hl ; past the arrow column -- hl is now the text destination
+	pop bc ; b = row index
+	ld a, [wDebugMenuParam] ; this page's item count -- a direct absolute
+	                        ; read, so hl (the destination) stays untouched
+	ld c, a
+	ld a, b
+	cp c ; row_index - count; carry set if row_index < count
+	ret nc ; row index >= count -- nothing on this page for this row
+	push hl ; save the destination -- about to clobber hl for the lookup
+	ld a, b
+	add a,a
+	add a,a ; row index * 4 (entry size)
+	ld c, a
+	ld b, 0
+	ld a, [wDebugMenu7TablePtr]
+	ld l, a
+	ld a, [wDebugMenu7TablePtr+1]
+	ld h, a
+	add hl, bc ; hl = this row's entry pointer
+	pop de ; de = destination, recovered
+	jp Menu7PrintEntry ; tail call -- it does its own ret
+
+Menu7Redraw:
+	; cache the current page's item count in wDebugMenuParam (Menu7 doesn't
+	; use it for anything else)
+	ld a, [wDebugMenuCursorPos]
+	ld c, a
+	ld b, 0
+	ld hl, Menu7PageCounts
+	add hl, bc
+	ld a, [hl]
+	ld [wDebugMenuParam], a
+
+	; cache the current page's table pointer in wDebugMenu7TablePtr
+	ld a, [wDebugMenuCursorPos]
+	add a,a
+	ld c, a
+	ld b, 0
+	ld hl, Menu7PageTablePtrs
+	add hl, bc
+	ld a, [hli]
+	ld h, [hl]
+	ld l, a
+	ld a, l
+	ld [wDebugMenu7TablePtr], a
+	ld a, h
+	ld [wDebugMenu7TablePtr+1], a
+
+	coord hl, 3, 4
+	ld b, 0
+	call Menu7RedrawOneRow
+	coord hl, 3, 5
+	ld b, 1
+	call Menu7RedrawOneRow
+	coord hl, 3, 6
+	ld b, 2
+	call Menu7RedrawOneRow
+	coord hl, 3, 7
+	ld b, 3
+	call Menu7RedrawOneRow
+	coord hl, 3, 8
+	ld b, 4
+	call Menu7RedrawOneRow
+	coord hl, 3, 9
+	ld b, 5
+	call Menu7RedrawOneRow
+	coord hl, 3, 10
+	ld b, 6
+	call Menu7RedrawOneRow
+
+	; draw the cursor arrow at the selected row
+	ld a, [wDebugMenu7RowCursor]
+	push af
+	coord hl, 3, 4
+	pop af
+	and a
+	jr z, .arrowReady
+	ld de, $0014
+.arrowLoop
+	add hl, de
+	dec a
+	jr nz, .arrowLoop
+.arrowReady
+	ld [hl], $ed
+	ret
+
+Menu7CursorUp:
+	ld hl, wDebugMenu7RowCursor
+	ld a, [hl]
+	and a
+	ret z
+	dec [hl]
+	jp Menu7Redraw
+
+Menu7CursorDown:
+	ld hl, wDebugMenu7RowCursor
+	ld a, [hl]
+	ld hl, wDebugMenuParam ; current page's cached item count
+	ld b, [hl]
+	dec b ; last valid row index
+	cp b
+	ret z
+	ld hl, wDebugMenu7RowCursor
+	inc [hl]
+	jp Menu7Redraw
 
 Menu7TurnL:
 	ld hl,wDebugMenuCursorPos
@@ -1394,7 +1577,9 @@ Menu7TurnL:
 	cp $00
 	ret z
 	dec [hl]
-	jr Menu7Redraw
+	xor a
+	ld [wDebugMenu7RowCursor], a
+	jp Menu7Redraw
 
 Menu7TurnR:
 	ld hl,wDebugMenuCursorPos
@@ -1402,26 +1587,39 @@ Menu7TurnR:
 	cp $03
 	ret z
 	inc [hl]
-	jr Menu7Redraw
+	xor a
+	ld [wDebugMenu7RowCursor], a
+	jp Menu7Redraw
 
-Menu7Redraw:
-	ld a,[hl]
-	ld hl,Menu7Texts
-	ld e,a
+; Jumps into the Hex Viewer (Menu3) pre-loaded at the currently selected
+; Address List entry's address, instead of just backing out.
+Menu7Perform:
+	ld a, [wDebugMenu7RowCursor]
 	add a,a
-	add a,e
-	inc a
-	ld c,a
-	ld b,$00
-	add hl,bc
-	ld a,[hl]
-	ld e,a
-	inc hl
-	ld a,[hl]
-	ld h,a
-	ld l,e
-	coord de, 3, 4
-	jp PutStringMultiline
+	add a,a ; row index * 4 (entry size)
+	ld c, a
+	ld b, 0
+	ld a, [wDebugMenu7TablePtr]
+	ld l, a
+	ld a, [wDebugMenu7TablePtr+1]
+	ld h, a
+	add hl, bc ; hl = selected entry pointer
+	ld a, [hli]
+	ld e, a ; addr_lo
+	ld a, [hl]
+	ld d, a ; addr_hi
+	push de ; protect the target address -- SwitchMenu (via Menu3Constructor's
+	        ; own call to MenuCursorRedraw) uses d/e as scratch internally, so
+	        ; without this the address gets silently clobbered before we can
+	        ; use it
+	ld a, 2 ; Menu3 (Hex Viewer)'s index in MenuList
+	call SwitchMenu ; runs Menu3Constructor normally (resets address to 0)
+	pop de ; recover the real target address
+	ld a, d
+	ld [wDebugMenuCursorPos], a
+	ld a, e
+	ld [wDebugMenuParam], a
+	jp Menu3Redraw ; re-render now that the real address is set
 
 MenuCursorUp:
 	ld hl,wDebugMenuCursorPos
