@@ -78,3 +78,6 @@ SpriteSheetPointerTable:
 	overworld_sprite GamblerAsleepSprite, 4     ; SPRITE_UNUSED_GAMBLER_ASLEEP_1
 	overworld_sprite GamblerAsleepSprite, 4     ; SPRITE_UNUSED_GAMBLER_ASLEEP_2
 	overworld_sprite GamblerAsleepSprite, 4     ; SPRITE_GAMBLER_ASLEEP
+	overworld_sprite PokeBallSprite, 4          ; SPRITE_MASTER_BALL -- reuses the
+	                                             ; exact same ball graphic; only the
+	                                             ; palette (below) differs

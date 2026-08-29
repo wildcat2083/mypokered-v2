@@ -364,7 +364,12 @@ ENDM
 
 AnimationTilesetPointers:
 	; number of tiles, gfx pointer
-	anim_tileset 79, AnimationTileset1
+	anim_tileset 79, AnimationTileset1 ; reverted to 79 -- vSprites (128 tiles)
+	                                   ; was already 100% full at 79 tiles
+	                                   ; (indices 49-127), so 81 silently wrote
+	                                   ; 2 tiles past the end into battle text
+	                                   ; VRAM. See MASTERTOSS_ANIM below for
+	                                   ; the actual fix.
 	anim_tileset 79, AnimationTileset2
 	anim_tileset 64, AnimationTileset1
 
@@ -2579,7 +2584,11 @@ TossBallAnimation:
 	cp GREAT_BALL
 	ld b, GREATTOSS_ANIM
 	jr z, .done
-	ld b, ULTRATOSS_ANIM
+	ld b, ULTRATOSS_ANIM ; Master Ball also falls through to here, same as
+	                      ; vanilla -- the purple recolor attempt for this
+	                      ; specific animation caused repeated instability
+	                      ; and was reverted. The overworld ball sprite is
+	                      ; still purple.
 .done
 	ld a, b
 .PlayNextAnimation

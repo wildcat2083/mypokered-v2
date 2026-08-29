@@ -523,6 +523,8 @@ SpritePaletteAssignments: ; Characters on the overworld
 	; 0x48: SPRITE_LYING_OLD_MAN
 	db SPR_PAL_BROWN
 
+	; SPRITE_MASTER_BALL
+	db SPR_PAL_PURPLE
 
 AnimationTileset1Palettes:
 	INCBIN "color/data/animtileset1palettes.bin"

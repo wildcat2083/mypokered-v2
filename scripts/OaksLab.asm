@@ -928,24 +928,32 @@ OaksLabMonChoiceMenu:
 	ld [wd11e], a
 	call AddPartyMon
 	ld hl, wd72e
-	set 3, [hl]
+	bit 3, [hl] ; has this bit already been set by an earlier pick? Checked
+	            ; BEFORE the 'set' below, and safe to rely on afterward since
+	            ; SET never touches flags on this CPU -- only BIT does.
+	            ;
+	            ; This bit (persistent, SRAM-backed, documented elsewhere in
+	            ; this file as "the player has received a pokemon from Prof.
+	            ; Oak") replaces the previous wPartyCount-based check, which
+	            ; broke under God Mode: God Mode pre-fills the party with 5
+	            ; Pokemon before the player ever reaches Oak's Lab, so
+	            ; wPartyCount was already >= 2 on the very first pick,
+	            ; incorrectly skipping the reveal AND the flag-set on that
+	            ; first interaction -- which let the player take all 3 balls
+	            ; with the rival never getting a turn at all. This bit isn't
+	            ; affected by party size at all, so it can't be fooled the
+	            ; same way.
+	set 3, [hl] ; mark "received a pokemon from Oak" -- runs unconditionally
+	            ; on every pick, same as before
 	ld a, $fc
 	ld [wJoyIgnore], a
-	ld a, [wPartyCount] ; wPartyCount was just incremented by AddPartyMon above.
-	cp 2                ; If it's still 1, this genuinely was the first-ever starter pick, so play
-	jr c, .doReplay      ; the walk-and-reveal sequence and set EVENT_GOT_STARTER as normal. If it's
-	                     ; 2 or more, this is an extra pick (only reachable via the save editor's
-	                     ; Unlock All 3 Starters toggle clearing the block) -- skip the reveal replay
-	                     ; and the flag re-set, and deliberately leave wOaksLabCurScript untouched:
-	                     ; it already holds whatever state let the player walk up and interact with
-	                     ; this ball in the first place, so that state is safe to keep. Jumping it
-	                     ; forward to script $a was tried and was wrong -- that script actively
-	                     ; waits for the player to reach a specific map position and then triggers
-	                     ; the "rival wants to battle" cutscene, so it would have replayed that
-	                     ; instead. The one real side effect that does need restoring by hand is
-	                     ; joypad input: it was just masked to $fc above, and only the (skipped)
-	                     ; reveal sequence would normally clear it back to 0. Skipping the reveal
-	                     ; without restoring this is what froze the game on the second pick.
+	jr nz, .extraPick ; bit was ALREADY set before this call -- this is an
+	                  ; extra pick, only reachable via the save editor's
+	                  ; Unlock All 3 Starters toggle, which must clear this
+	                  ; same bit (not just EVENT_GOT_STARTER) for extra picks
+	                  ; to keep working
+	jr .doReplay
+.extraPick
 	xor a
 	ld [wJoyIgnore], a
 	jr .skipReplayingRivalReveal

@@ -1353,9 +1353,11 @@ Menu7PageTablePtrs:
 	dw Menu7Page2Table
 	dw Menu7Page3Table
 	dw Menu7Page4Table
+	dw Menu7Page5Table
+	dw Menu7Page6Table
 
 Menu7PageCounts:
-	db 7, 7, 5, 7
+	db 7, 7, 7, 7, 7, 7
 
 Menu7Page1Table:
 	dw $C000, .l0
@@ -1395,11 +1397,15 @@ Menu7Page3Table:
 	dw $D188, .l2
 	dw $D18F, .l3
 	dw $D747, .l4
+	dw $D16C, .l5
+	dw $D16F, .l6
 .l0: db "1MonLevel",0
 .l1: db "1MonMoves",0
 .l2: db "1MonPP",0
 .l3: db "1MonStats",0
 .l4: db "EvtFlags",0
+.l5: db "1MonHP",0
+.l6: db "1MonCond",0
 
 Menu7Page4Table:
 	dw $C3A0, .l0
@@ -1416,6 +1422,38 @@ Menu7Page4Table:
 .l4: db "TextboxID",0
 .l5: db "PlayerNam",0
 .l6: db "RivalName",0
+
+Menu7Page5Table:
+	dw $D347, .l0
+	dw $D5A4, .l1
+	dw $D355, .l2
+	dw $D359, .l3
+	dw $D35E, .l4
+	dw $D732, .l5
+	dw $CD6B, .l6
+.l0: db "Money",0
+.l1: db "Coins",0
+.l2: db "Options",0
+.l3: db "PlayerID",0
+.l4: db "Cur map",0
+.l5: db "GodMode",0
+.l6: db "JoyIgnore",0
+
+Menu7Page6Table:
+	dw $D2F7, .l0
+	dw $D30A, .l1
+	dw $D70D, .l2
+	dw $DA47, .l3
+	dw $CCE9, .l4
+	dw $CCE8, .l5
+	dw $D127, .l6
+.l0: db "DexOwned",0
+.l1: db "DexSeen",0
+.l2: db "SafariStp",0
+.l3: db "SafariBal",0
+.l4: db "BaitFctr",0
+.l5: db "EscFctr",0
+.l6: db "EnemyLvl",0
 
 ; in: hl = pointer to a 4-byte entry (addr_lo, addr_hi, label_lo, label_hi)
 ;     de = screen destination for "AAAA: label"
@@ -1584,7 +1622,7 @@ Menu7TurnL:
 Menu7TurnR:
 	ld hl,wDebugMenuCursorPos
 	ld a,[hl]
-	cp $03
+	cp $05 ; now 6 pages (0-5), not 4 (0-3)
 	ret z
 	inc [hl]
 	xor a

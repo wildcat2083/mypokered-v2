@@ -75,3 +75,5 @@ FIRST_STILL_SPRITE EQU const_value
 	const SPRITE_UNUSED_GAMBLER_ASLEEP_1 ; $46
 	const SPRITE_UNUSED_GAMBLER_ASLEEP_2 ; $47
 	const SPRITE_GAMBLER_ASLEEP          ; $48
+	const SPRITE_MASTER_BALL             ; $49 -- same shape as SPRITE_POKE_BALL,
+	                                      ; shown with a different (purple) palette
