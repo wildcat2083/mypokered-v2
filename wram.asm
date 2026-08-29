@@ -3161,6 +3161,9 @@ wDebugMenuParam::       ds 1
 wDebugAddrLabelBuf::    ds 18 ; FindDebugAddrLabel copies its result string here before
                               ; returning, since a raw pointer into its own ROM bank
                               ; (46) stops being valid the instant the bank switches back
+wDebugMenu6ScrollOffset:: ds 1 ; index of the item currently at the top of Menu6's
+                              ; (Miscellaneous) visible 7-row window, since it now has
+                              ; more items than fit on screen at once
 
 SECTION "Stack", WRAM0
 

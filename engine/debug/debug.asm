@@ -1083,10 +1083,8 @@ Menu6Constructor:
 	xor a
 	ld [wDebugMenuCursorPos], a ; cursor position at 0
 	ld [wDebugMenuParam], a ; param at 0
+	ld [wDebugMenu6ScrollOffset], a ; scrolled to the very top
 	call MenuCursorRedraw
-	ld hl,Menu6Text
-	coord de, 4, 4
-	call PutStringMultiline
 	jp Menu6Redraw
 
 Menu6Desc1:
@@ -1095,16 +1093,113 @@ Menu6Desc1:
 	db "B Button: Cancel",$0a
 	db "Parameter:",$00
 
-Menu6Text:
-	db "Give ()",$0a
-	db "Give item",$0a
-	db "Clear () box",$0a
-	db "All fly locs.",$0a
-	db "Predef [7 heal]",$0a
-	db "Set money",$0a
-	db "Set coins",$00
+; 8 items now (more than the 7 visible rows), so the list is stored as
+; individual strings plus a lookup table instead of one big blob, letting
+; Menu6Redraw print just whichever 7 are currently scrolled into view.
+Menu6ItemTable:
+	dw Menu6Item0
+	dw Menu6Item1
+	dw Menu6Item2
+	dw Menu6Item3
+	dw Menu6Item4
+	dw Menu6Item5
+	dw Menu6Item6
+	dw Menu6Item7
+
+Menu6Item0: db "Give ()",0
+Menu6Item1: db "Give item",0
+Menu6Item2: db "Clear () box",0
+Menu6Item3: db "All fly locs.",0
+Menu6Item4: db "Predef [7 heal]",0
+Menu6Item5: db "Set money",0
+Menu6Item6: db "Set coins",0
+Menu6Item7: db "Mew glitch",0
+
+; in: a = item index (0-7), hl = destination screen position
+; out: prints that item's text at [hl] until the null terminator
+; clobbers: a, b, c, d, e, hl
+Menu6PrintItemByIndex:
+	push hl ; save the destination -- about to reuse hl for the table lookup
+	add a,a ; index * 2, since each table entry is a 2-byte pointer
+	ld c, a
+	ld b, 0
+	ld hl, Menu6ItemTable
+	add hl, bc
+	ld a, [hli]
+	ld h, [hl]
+	ld l, a ; hl = the actual string pointer now
+	pop de  ; de = destination, recovered from the push above
+.printLoop
+	ld a, [hli]
+	and a
+	ret z
+	ld [de], a
+	inc de
+	jr .printLoop
+
+; in: hl = screen position of this row's arrow column (column 3), b = which
+;     of the 7 visible rows this is (0-6)
+; out: clears the row and prints the correct item's text into it (not the
+;      arrow itself -- Menu6Redraw draws that separately, once, after all
+;      7 rows are done)
+; clobbers: a, b, c, d, e, hl
+Menu6RedrawOneRow:
+	push bc
+	ld a,$7f
+	ld c,$11
+	push hl
+.clearLoop
+	ld [hli],a
+	dec c
+	jr nz,.clearLoop
+	pop hl
+	inc hl ; move past the arrow column to where the item text starts
+	pop bc
+	ld a,[wDebugMenu6ScrollOffset]
+	add b ; item index = scrollOffset + this row's offset
+	jp Menu6PrintItemByIndex ; tail call -- it does its own ret
 
 Menu6Redraw:
+	coord hl, 3, 4
+	ld b, 0
+	call Menu6RedrawOneRow
+	coord hl, 3, 5
+	ld b, 1
+	call Menu6RedrawOneRow
+	coord hl, 3, 6
+	ld b, 2
+	call Menu6RedrawOneRow
+	coord hl, 3, 7
+	ld b, 3
+	call Menu6RedrawOneRow
+	coord hl, 3, 8
+	ld b, 4
+	call Menu6RedrawOneRow
+	coord hl, 3, 9
+	ld b, 5
+	call Menu6RedrawOneRow
+	coord hl, 3, 10
+	ld b, 6
+	call Menu6RedrawOneRow
+
+	; draw the cursor arrow at whichever visible row the cursor is on
+	ld a, [wDebugMenuCursorPos]
+	ld hl, wDebugMenu6ScrollOffset
+	sub [hl]
+	push af
+	coord hl, 3, 4
+	pop af
+	and a
+	jr z, .arrowReady
+	ld de, $0014
+.arrowLoop
+	add hl, de
+	dec a
+	jr nz, .arrowLoop
+.arrowReady
+	ld [hl], $ed
+
+	; redraw the "Parameter: XX" hex display (unchanged from before)
 	ld a, [wDebugMenuParam]
 	coord hl, 12, 16
 	call WriteDblHexExpr
@@ -1115,22 +1210,43 @@ Menu6ParamL:
 	ld a,[hl]
 	add a,$10
 	ld [hl],a
-	jr Menu6Redraw
+	jp Menu6Redraw
 
 Menu6ParamR:
 	ld hl,wDebugMenuParam
 	inc [hl]
-	jr Menu6Redraw
+	jp Menu6Redraw
 
+; Custom scrolling cursor movement -- Menu6 no longer uses the shared
+; MenuCursorUp/MenuCursorDown at all, since those assume a fixed 1-to-1
+; mapping between cursor position and screen row with no scrolling.
 Menu6CursorUp:
-	ld bc,Menu6Redraw
-	push bc
-	jp MenuCursorUp
+	ld hl,wDebugMenuCursorPos
+	ld a,[hl]
+	and a
+	ret z ; already at the very first item
+	dec [hl]
+	ld a,[hl]
+	ld hl,wDebugMenu6ScrollOffset
+	cp [hl]
+	jp nc, Menu6Redraw ; cursor is still within the visible window
+	dec [hl] ; cursor moved above the visible window -- scroll up
+	jp Menu6Redraw
 
 Menu6CursorDown:
-	ld bc,Menu6Redraw
-	push bc
-	jp MenuCursorDown
+	ld hl,wDebugMenuCursorPos
+	ld a,[hl]
+	cp $07 ; last item (8 items, 0-7)
+	ret z
+	inc [hl]
+	ld a,[hl]
+	ld hl,wDebugMenu6ScrollOffset
+	ld b,[hl]
+	sub b
+	cp $07 ; did the cursor fall below the visible window (7 rows, 0-6)?
+	jp c, Menu6Redraw
+	inc [hl] ; scroll down
+	jp Menu6Redraw
 
 Menu6Cursor0:
 	ld c,$05
@@ -1163,7 +1279,9 @@ Menu6Perform:
 	jr z,Menu6Cursor4
 	cp $05
 	jr z,Menu6Cursor5
-	jr Menu6Cursor6
+	cp $06
+	jr z,Menu6Cursor6
+	jr Menu6Cursor7
 
 Menu6Finish:
 	call ConfirmSound
@@ -1191,6 +1309,18 @@ Menu6Cursor6:
 	ld a, 8 ; Menu9 (Set Coins)'s index in MenuList
 	call SwitchMenu
 	ret
+
+Menu6Cursor7:
+	ld a,$fb ; Mew's internal species ID -- writing it to these 2 event-flag
+	         ; bytes is the classic Gen 1 trainer-escape glitch that spawns a
+	         ; wild Mew instead of the next trainer battle. Same 2 addresses
+	         ; and same value the save editor's "Mew glitch" checkbox uses.
+	         ; These bytes are part of the general wEventFlags array, so this
+	         ; does also flip a number of unrelated story flags as a side
+	         ; effect -- same trade-off the save editor version always had.
+	ld [$D7EF], a
+	ld [$D7F1], a
+	jr Menu6Finish
 
 Menu7Properties:
 	ld bc,SwitchMenuBack   ; [UP]
