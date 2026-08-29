@@ -976,3 +976,4 @@ ENDC
 
 SECTION "bank38", ROMX
 INCLUDE "engine/debug/debug.asm"
+INCLUDE "engine/debug/debug_addr_labels.asm"

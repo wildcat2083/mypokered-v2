@@ -230,6 +230,8 @@ MenuList:
 	ld bc,Menu5Properties
 	ld bc,Menu6Properties
 	ld bc,Menu7Properties
+	ld bc,Menu8Properties
+	ld bc,Menu9Properties
 
 Menu1Properties:
 	ld bc,MenuCursorUp   ; [UP]
@@ -332,6 +334,52 @@ ReadDblHexExpr:
 	add a,c
 	ret
 
+; in: hl = screen position of the first of 3 consecutive decimal digit chars
+; out: a = decoded byte value (hundreds*100 + tens*10 + ones, 8-bit wraparound
+;      if the typed number exceeds 255 -- e.g. typing 999 silently becomes 231)
+;      hl advances past all 3 digits (matches WriteDecExpr's convention, so
+;      the caller doesn't need an extra inc hl the way ReadDblHexExpr needs)
+; clobbers: a, b, c, d, e -- this DOES use d/e as scratch, unlike WriteDecExpr.
+; That's safe here specifically because the only caller (Menu2Perform_1L)
+; wraps this call in push de / pop de to protect its own live de (the target
+; write address), the same pattern the original ReadDblHexExpr call already
+; relied on. WriteDecExpr's bug was calling it from a site that did NOT do
+; this wrapping -- the fix there was to avoid d/e entirely instead.
+ReadDecExpr:
+	ld a,[hli]
+	sub $f6
+	ld d,a        ; hundreds digit (0-9)
+	ld a,[hli]
+	sub $f6
+	ld e,a        ; tens digit (0-9)
+	ld a,[hli]
+	sub $f6
+	ld c,a        ; ones digit (0-9) -- untouched by both loops below
+	ld b,0        ; running total
+	ld a,d
+	and a
+	jr z,.hundredsDone
+.hundredsLoop
+	ld a,b
+	add 100
+	ld b,a
+	dec d
+	jr nz,.hundredsLoop
+.hundredsDone
+	ld a,e
+	and a
+	jr z,.tensDone
+.tensLoop
+	ld a,b
+	add 10
+	ld b,a
+	dec e
+	jr nz,.tensLoop
+.tensDone
+	ld a,b
+	add c
+	ret
+
 WriteHexExpr:
 	push de
 	push hl
@@ -359,6 +407,43 @@ WriteDblHexExpr:
 	call WriteHexExpr
 	ret
 
+; in: a = byte value (0-255), hl = destination screen tilemap address
+; out: writes 3 decimal digit characters (always 3, zero-padded) starting at
+;      [hl], leaving hl pointing just past them
+; clobbers: a, b, c -- deliberately NOT d or e, since Menu3Redraw_L1 (the only
+; caller) keeps the current memory address live in d:e across this call.
+; b/e used to hold the address there too, which corrupted it on every row.
+WriteDecExpr:
+	ld b, 0
+.hundreds
+	cp 100
+	jr c, .doneHundreds
+	sub 100
+	inc b
+	jr .hundreds
+.doneHundreds
+	ld c, a       ; c = remainder 0-99, b = hundreds digit 0-2
+	ld a, b
+	add $f6       ; "0" through "9" are $f6-$ff in this game's font, in order
+	ld [hli], a
+	ld a, c
+	ld b, 0
+.tens
+	cp 10
+	jr c, .doneTens
+	sub 10
+	inc b
+	jr .tens
+.doneTens
+	push af       ; a = ones digit 0-9
+	ld a, b
+	add $f6
+	ld [hli], a   ; tens digit
+	pop af
+	add $f6
+	ld [hli], a   ; ones digit
+	ret
+
 Menu2Properties:
 	ld bc,Menu2CycUp   ; [UP]
 	ld bc,Menu2CycDown ; [DOWN]
@@ -379,7 +464,7 @@ Menu2Constructor:
 	coord de, 3, 4
 	call PutStringMultiline
 	ld a,$f6
-	ld c,$0f
+	ld c,$0e ; address(4) + separator(1) + value(3 bytes x 3 decimal digits) = 14
 	coord hl, 3, 7
 	call MemSet
 	coord hl, 7, 7
@@ -399,14 +484,15 @@ Menu2Desc1:
 	db $0d,"START and A: Len",$0a
 	db "D-PAD: Modify",$0a
 	db "A Button: OK",$0a
-	db "B Button: Cancel",$00
+	db "Values are decimal",$00
 
 Menu2LenCyc:
 	ld hl,wDebugMenuParam
 	ld a,[hl]
 	inc a
 	ld [hl],a
-	cp $06
+	cp $04 ; value bytes are 3 decimal digits wide now instead of 2 hex digits,
+	       ; so max length dropped from 5 to 3 to keep the row inside the box
 	jr nz,Menu2LenCyc_L1
 	ld [hl],$01
 
@@ -437,8 +523,8 @@ Menu2Perform:
 Menu2Perform_1L:
 	push bc
 	push de
-	call ReadDblHexExpr
-	inc hl
+	call ReadDecExpr ; advances hl by 3 itself -- no extra inc hl needed here,
+	                  ; unlike ReadDblHexExpr which only advances by 1 internally
 	pop de
 	ld [de],a
 	inc de
@@ -459,7 +545,8 @@ Menu2CurLeft:
 Menu2CurRight:
 	ld hl,wDebugMenuCursorPos
 	ld a,[hl]
-	cp $0e
+	cp $0d ; last valid position: address(4) + dead separator stop(1) + value
+	       ; (3 bytes x 3 decimal digits = 9) = 14 positions, 0-13
 	ret z
 	inc [hl]
 	jr Menu2Redraw
@@ -467,7 +554,8 @@ Menu2CurRight:
 Menu2Redraw:
 	coord hl, 3, 6
 	ld a,$7f
-	ld c,$10
+	ld c,$0f ; one more than the position count, matching the same +1 margin
+	         ; the original hex-mode code used here
 	push hl
 	call MemSet
 	pop hl
@@ -484,6 +572,10 @@ DrawBottomBox:
 	ret
 
 Menu2CycUp:
+	ld a, [wDebugMenuCursorPos]
+	cp 5
+	jr nc, .decimalDigit ; positions 0-4 are the (unchanged) hex address digits
+	                      ; plus the dead separator stop; 5+ are value digits
 	coord hl, 3, 7
 	ld a, [wDebugMenuCursorPos]
 	add a,l
@@ -498,6 +590,21 @@ Menu2CycUp:
 	ret nz
 	ld [hl],$f6
 	ret
+.decimalDigit
+	coord hl, 3, 7
+	ld a, [wDebugMenuCursorPos]
+	add a,l
+	ld l,a
+	ld a,[hl]
+	cp $ff ; is it "9"?
+	jr z, .wrapToZero
+	inc a
+	ld [hl],a
+	ret
+.wrapToZero
+	ld a,$f6
+	ld [hl],a
+	ret
 
 Menu2CycUp_L1:
 	ld [hl],$80
@@ -508,6 +615,9 @@ MenuCycRestore:
 	ret
 
 Menu2CycDown:
+	ld a, [wDebugMenuCursorPos]
+	cp 5
+	jr nc, .decimalDigit
 	coord hl, 3, 7
 	ld a, [wDebugMenuCursorPos]
 	add a,l
@@ -521,6 +631,21 @@ Menu2CycDown:
 	cp $7f
 	ret nz
 	ld [hl],$ff
+	ret
+.decimalDigit
+	coord hl, 3, 7
+	ld a, [wDebugMenuCursorPos]
+	add a,l
+	ld l,a
+	ld a,[hl]
+	cp $f6 ; is it "0"?
+	jr z, .wrapToNine
+	dec a
+	ld [hl],a
+	ret
+.wrapToNine
+	ld a,$ff
+	ld [hl],a
 	ret
 
 Menu2CycDown_L1:
@@ -556,6 +681,24 @@ Menu3Redraw:
 	coord hl, 3, 4
 	ld c,$07
 	ld a, [wDebugMenuCursorPos]
+	ld d,a
+	ld a, [wDebugMenuParam]
+	ld e,a
+
+	push bc
+	farcall FindDebugAddrLabel ; hl = label for the address currently at the top of the view
+	push hl
+	coord hl, 1, 16
+	ld a, $7f
+	ld c, $12
+	call MemSet ; clear the row first, so a shorter label doesn't leave stale characters behind
+	pop hl
+	coord de, 1, 16
+	call PutStringMultiline
+	pop bc
+
+	coord hl, 3, 4               ; restore -- clobbered by the label lookup/render above
+	ld a, [wDebugMenuCursorPos]  ; reload d/e -- also clobbered
 	ld d,a
 	ld a, [wDebugMenuParam]
 	ld e,a
@@ -668,7 +811,7 @@ Menu4Properties:
 	ld bc,Menu4Desc1 ; desc1
 	ld bc,Menu4Desc2 ; desc2
 	ld bc,Menu4Desc3 ; desc3
-	ld bc,Menu4Desc3 ; desc4
+	ld bc,Menu4DescDblReturn ; desc4
 	ld bc,Menu4Desc4 ; desc5
 
 Menu4Constructor:
@@ -701,6 +844,12 @@ Menu4Desc4:
 	db "vectors through",$0a
 	db "stack manipula-",$0a
 	db "tions.",$00
+
+Menu4DescDblReturn:
+	db $0d,"Unwinds 2 stack",$0a
+	db "entries, then",$0a
+	db "returns through",$0a
+	db "a 3rd.",$00
 
 Menu4Text:
 	db "Turn off",$0a
@@ -952,8 +1101,8 @@ Menu6Text:
 	db "Clear () box",$0a
 	db "All fly locs.",$0a
 	db "Predef [7 heal]",$0a
-	db "Max money",$0a
-	db "Display area TX",$00
+	db "Set money",$0a
+	db "Set coins",$00
 
 Menu6Redraw:
 	ld a, [wDebugMenuParam]
@@ -1034,19 +1183,14 @@ Menu6Cursor4:
 	jr Menu6Finish
 
 Menu6Cursor5:
-	ld hl,wPlayerMoney
-	ld a,$99
-	ld [hli], a
-	ld [hli], a
-	ld [hli], a
-	jr Menu6Finish
+	ld a, 7 ; Menu8 (Set Money)'s index in MenuList
+	call SwitchMenu
+	ret
 
 Menu6Cursor6:
-	ld a,b
-	ld [hSpriteIndexOrTextID], a
-	call DisplayTextID
-	pop bc
-	jp ReturnControlCall
+	ld a, 8 ; Menu9 (Set Coins)'s index in MenuList
+	call SwitchMenu
+	ret
 
 Menu7Properties:
 	ld bc,SwitchMenuBack   ; [UP]
@@ -1085,10 +1229,10 @@ Menu7Text1:
 	db "CFC6: Battle nfo",$0a
 	db "CF7A: Mart items",$0a
 	db "D058: Encounter ",$0a
-	db "D162: Party ()  ",$00
+	db "D163: Party ()  ",$00
 
 Menu7Text2:
-	db "D31C: Item count",$0a
+	db "D31D: Item count",$0a
 	db "D356: Cur badges",$0a
 	db "D361: X/Y coords",$0a
 	db "D36E: Map script",$0a
@@ -1098,12 +1242,12 @@ Menu7Text2:
 
 Menu7Text3:
 	db "1st () settings:",$0a
-	db "D18B: Level     ",$0a
+	db "D18C: Level     ",$0a
 	db "D172: Moveset   ",$0a
 	db "D188: PP        ",$0a
 	db "D18F: Stats     ",$0a
 	db "----------------",$0a
-	db "D5AB: Evt flags ",$00
+	db "D747: Evt flags ",$00
 
 Menu7Text4:
 	db "C3A0: ScreenData",$0a
@@ -1111,8 +1255,8 @@ Menu7Text4:
 	db "CF4B: Last name ",$0a
 	db "D05C: Team ID   ",$0a
 	db "D12B: Textbox ID",$0a
-	db "D157: PlayerName",$0a
-	db "D349: Rival name",$00
+	db "D158: PlayerName",$0a
+	db "D34A: Rival name",$00
 
 Menu7TurnL:
 	ld hl,wDebugMenuCursorPos
@@ -1167,7 +1311,9 @@ MenuCursorDown:
 	ret z
 	cp $34
 	ret z
-	cp $56
+	cp $56 ; Menu6 (Miscellaneous) is back to exactly 7 items (0-6): removed
+	       ; "Max money" and "Display area TX", replaced by "Set money" and
+	       ; "Set coins" -- net item count unchanged from the original design
 	ret z
 	inc [hl]
 	call MenuCursorRedraw
@@ -1230,3 +1376,217 @@ MenuCursorRedraw_L2:
 
 MenuCursorRedrawStr:
 	db $7f,$0a,$7f,$0a,$7f,$0a,$7f,$0a,$7f,$0a,$7f,$0a,$7f,$00
+
+; in: a = a BCD byte (each nibble is a decimal digit 0-9), hl = destination
+; out: writes 2 decimal digit characters to [hl], hl advances by 2
+; clobbers: a, b
+; (same logic as debug_addr_labels.asm's WriteBcdDigits, duplicated locally
+; so Menu8/Menu9 don't need a farcall to reach it)
+Menu89WriteBcdDigits:
+	ld b, a
+	swap a
+	and $0f
+	add $f6
+	ld [hli], a
+	ld a, b
+	and $0f
+	add $f6
+	ld [hli], a
+	ret
+
+; in: hl = screen position of 2 consecutive decimal digit characters
+; out: a = the 2 digits packed into one BCD byte ((digit0<<4)|digit1)
+;      hl advances by 2
+; clobbers: a, b
+Menu89ReadDigitPairAsBcd:
+	ld a,[hli]
+	sub $f6
+	swap a
+	ld b,a
+	ld a,[hli]
+	sub $f6
+	or b
+	ret
+
+Menu8Properties:
+	ld bc,Menu89CycUp    ; [UP]
+	ld bc,Menu89CycDown  ; [DOWN]
+	ld bc,Menu8CurLeft   ; [LEFT]
+	ld bc,Menu8CurRight  ; [RIGHT]
+	ld bc,Menu89Cancel   ; [B]
+	ld bc,Menu8Perform   ; [A]
+	ld bc,Menu8Constructor ; .ctor
+	ld bc,Menu89Desc1    ; desc1
+
+Menu8Constructor:
+	xor a
+	ld [wDebugMenuCursorPos], a
+	call MenuCursorRedraw
+	ld hl,Menu8Text
+	coord de, 3, 4
+	call PutStringMultiline
+	coord hl, 3, 7
+	ld a,[wPlayerMoney]
+	call Menu89WriteBcdDigits
+	ld a,[wPlayerMoney+1]
+	call Menu89WriteBcdDigits
+	ld a,[wPlayerMoney+2]
+	call Menu89WriteBcdDigits
+	jp Menu8Redraw
+
+Menu8Text:
+	db " -Set Money-",$00
+
+Menu89Desc1:
+	db $0d,"D-PAD: Modify",$0a
+	db "A Button: OK",$0a
+	db "B Button: Cancel",$0a
+	db "Values are decimal",$00
+
+Menu8CurLeft:
+	ld hl,wDebugMenuCursorPos
+	ld a,[hl]
+	cp $00
+	ret z
+	dec [hl]
+	jr Menu8Redraw
+
+Menu8CurRight:
+	ld hl,wDebugMenuCursorPos
+	ld a,[hl]
+	cp $05 ; 6 digits, positions 0-5
+	ret z
+	inc [hl]
+	jr Menu8Redraw
+
+Menu8Redraw:
+	coord hl, 3, 6
+	ld a,$7f
+	ld c,$06
+	push hl
+	call MemSet
+	pop hl
+	ld a, [wDebugMenuCursorPos]
+	add a,l
+	ld l,a
+	ld [hl],$ee
+	ret
+
+Menu8Perform:
+	coord hl, 3, 7
+	call Menu89ReadDigitPairAsBcd
+	ld [wPlayerMoney], a
+	call Menu89ReadDigitPairAsBcd
+	ld [wPlayerMoney+1], a
+	call Menu89ReadDigitPairAsBcd
+	ld [wPlayerMoney+2], a
+	call ConfirmSound
+	ld a, 5 ; back to Menu6 (Miscellaneous), not the top-level menu list
+	call SwitchMenu
+	ret
+
+Menu9Properties:
+	ld bc,Menu89CycUp    ; [UP]
+	ld bc,Menu89CycDown  ; [DOWN]
+	ld bc,Menu9CurLeft   ; [LEFT]
+	ld bc,Menu9CurRight  ; [RIGHT]
+	ld bc,Menu89Cancel   ; [B]
+	ld bc,Menu9Perform   ; [A]
+	ld bc,Menu9Constructor ; .ctor
+	ld bc,Menu89Desc1    ; desc1
+
+Menu9Constructor:
+	xor a
+	ld [wDebugMenuCursorPos], a
+	call MenuCursorRedraw
+	ld hl,Menu9Text
+	coord de, 3, 4
+	call PutStringMultiline
+	coord hl, 3, 7
+	ld a,[COINS_BASE_ADDR]
+	call Menu89WriteBcdDigits
+	ld a,[COINS_BASE_ADDR+1]
+	call Menu89WriteBcdDigits
+	jp Menu9Redraw
+
+Menu9Text:
+	db " -Set Coins-",$00
+
+Menu9CurLeft:
+	ld hl,wDebugMenuCursorPos
+	ld a,[hl]
+	cp $00
+	ret z
+	dec [hl]
+	jr Menu9Redraw
+
+Menu9CurRight:
+	ld hl,wDebugMenuCursorPos
+	ld a,[hl]
+	cp $03 ; 4 digits, positions 0-3
+	ret z
+	inc [hl]
+	jr Menu9Redraw
+
+Menu9Redraw:
+	coord hl, 3, 6
+	ld a,$7f
+	ld c,$04
+	push hl
+	call MemSet
+	pop hl
+	ld a, [wDebugMenuCursorPos]
+	add a,l
+	ld l,a
+	ld [hl],$ee
+	ret
+
+Menu9Perform:
+	coord hl, 3, 7
+	call Menu89ReadDigitPairAsBcd
+	ld [COINS_BASE_ADDR], a
+	call Menu89ReadDigitPairAsBcd
+	ld [COINS_BASE_ADDR+1], a
+	call ConfirmSound
+	ld a, 5 ; back to Menu6 (Miscellaneous)
+	call SwitchMenu
+	ret
+
+Menu89Cancel:
+	ld a, 5 ; back to Menu6 (Miscellaneous), not the top-level menu list
+	call SwitchMenu
+	ret
+
+; Shared decimal digit cycling for both Menu8 and Menu9's value digits.
+; Same wrap-at-0-and-9 logic as Menu2's decimal value digits.
+Menu89CycUp:
+	coord hl, 3, 7
+	ld a, [wDebugMenuCursorPos]
+	add a,l
+	ld l,a
+	ld a,[hl]
+	cp $ff ; is it "9"?
+	jr z, .wrapToZero
+	inc a
+	ld [hl],a
+	ret
+.wrapToZero
+	ld a,$f6
+	ld [hl],a
+	ret
+
+Menu89CycDown:
+	coord hl, 3, 7
+	ld a, [wDebugMenuCursorPos]
+	add a,l
+	ld l,a
+	ld a,[hl]
+	cp $f6 ; is it "0"?
+	jr z, .wrapToNine
+	dec a
+	ld [hl],a
+	ret
+.wrapToNine
+	ld a,$ff
+	ld [hl],a
+	ret

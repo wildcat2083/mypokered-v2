@@ -3158,6 +3158,9 @@ ENDC
 wDebugMenuID::          ds 1
 wDebugMenuCursorPos::   ds 1
 wDebugMenuParam::       ds 1
+wDebugAddrLabelBuf::    ds 18 ; FindDebugAddrLabel copies its result string here before
+                              ; returning, since a raw pointer into its own ROM bank
+                              ; (46) stops being valid the instant the bank switches back
 
 SECTION "Stack", WRAM0
 
