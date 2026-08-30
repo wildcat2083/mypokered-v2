@@ -9,7 +9,28 @@ SetGodmodeTeam:
 	ld a, [de]
 	ld [wCurEnemyLVL], a
 	inc de
+	push de                ; preserve our GodmodeTeam read pointer across
+	                        ; AddPartyMon and our own nickname-writing below
 	call AddPartyMon
+	; _AddPartyMon skips the "give a nickname?" prompt whenever
+	; wMonDataLocation != 0 (see DebugStart, which deliberately sets it to
+	; $10 to skip exactly this), but skipping the prompt also skips the
+	; only code that ever writes a nickname at all -- there's no fallback
+	; to the species name elsewhere, so without this the mon has no name
+	; whatsoever. Write the default species name as the nickname ourselves.
+	ld hl, wPartyMonNicks
+	ldh a, [hNewPartyLength]
+	dec a
+	push af
+	call SkipFixedLengthTextEntries
+	ld d, h
+	ld e, l
+	ld hl, GodmodeNames
+	pop af
+	call SkipFixedLengthTextEntries
+	ld bc, NAME_LENGTH
+	call CopyData
+	pop de
 	jr .loop
 	
 GodmodeTeam:
@@ -20,9 +41,20 @@ GodmodeTeam:
 	db ARTICUNO, 5
 	db -1
 
+GodmodeNames:
+	db "MEW@@@@@@@@"
+	db "VULPIX@@@@@"
+	db "PIKACHU@@@@"
+	db "MEWTWO@@@@@"
+	db "ARTICUNO@@@"
+
 DebugStart:
 IF DEF(_DEBUG)
-	xor a ; PLAYER_PARTY_DATA
+	ld a, $10 ; still player's party (low nybble 0), but nonzero overall so
+	          ; _AddPartyMon skips the "give a nickname?" prompt for all 5
+	          ; Godmode team members -- the starter you pick afterward at
+	          ; Oak's Lab is unaffected, since that's a separate code path
+	          ; that sets wMonDataLocation to true 0 itself
 	ld [wMonDataLocation], a
 	
 	call SetGodmodeTeam
