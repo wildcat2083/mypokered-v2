@@ -86,6 +86,13 @@ IF DEF(_DEBUG)
 	ld a, $ff ^ (1 << BIT_EARTHBADGE)
 	ld [wObtainedBadges], a
 
+	; Set text speed to Fast, preserving the battle style/animation bits
+	; (upper nybble of wOptions) rather than overwriting the whole byte.
+	ld a, [wOptions]
+	and $f0
+	or 1 ; text speed: 1 = Fast, 3 = Medium, 5 = Slow
+	ld [wOptions], a
+
 	; Get some debug items.
 	ld hl, wNumBagItems
 	ld de, DebugItemsList
