@@ -248,13 +248,22 @@ PlayAnimation:
 	nop
 	nop
 	call LoadAnimationTileset
+	ld a, [wThrowingMasterBall] ; re-apply the purple ball-tile palette every
+	and a                       ; time it just got reset by the call above,
+	jr z, .notMasterBallThrow   ; but only during an actual Master Ball
+	ld a, ATK_PAL_PURPLE        ; throw -- inert for every other animation.
+	call SetTossBallTilesPalette ; LoadSubanimation (right below) doesn't
+	                            ; depend on any specific incoming BC value --
+	                            ; it overwrites B itself immediately -- so no
+	                            ; push/pop needed around this call.
+.notMasterBallThrow
 	call LoadSubanimation
 	call PlaySubanimation
 	pop af
 	ldh [rOBP0], a
 .nextAnimationCommand
 	pop hl
-	jr .animationLoop
+	jp .animationLoop
 .AnimationOver
 	ret
 
@@ -402,6 +411,24 @@ MoveAnimation:
 	; if throwing a Poké Ball, skip the regular animation code
 	cp TOSS_ANIM
 	jr nz, .moveAnimation
+	ld a, [wcf91]
+	cp MASTER_BALL
+	jr nz, .normalToss
+	; Master Ball: set a flag for the whole duration of the throw sequence
+	; so PlayAnimation's own internal code (below, right after its own
+	; LoadAnimationTileset call) can re-apply the purple ball-tile palette
+	; every time that call resets it -- which happens before EVERY single
+	; subanimation step, including the throw itself. Setting the palette
+	; from out here, once, doesn't work: PlayAnimation immediately resets
+	; it back to normal via that same internal call before the ball ever
+	; actually gets drawn.
+	ld a, 1
+	ld [wThrowingMasterBall], a
+	call TossBallAnimation
+	xor a
+	ld [wThrowingMasterBall], a
+	jr .animationFinished
+.normalToss
 	ld de, .animationFinished
 	push de
 	jp TossBallAnimation
@@ -673,6 +700,13 @@ DoBallTossSpecialEffects:
 	ld a, [wcf91]
 	cp 3 ; is it a Master Ball or Ultra Ball?
 	jr nc, .skipFlashingEffect
+	cp MASTER_BALL
+	jr z, .skipFlashingEffect ; Master Ball keeps a solid purple recolor
+	                          ; instead of the vanilla flash -- the flash
+	                          ; works by toggling the rOBP0 hardware
+	                          ; register every frame, which fights the
+	                          ; purple palette assignment for the same
+	                          ; slot. Ultra Ball's flash is untouched.
 .flashingEffect ; do a flashing effect if it's Master Ball or Ultra Ball
 	ldh a, [rOBP0]
 	xor %00111100 ; complement colors 1 and 2
@@ -2616,6 +2650,46 @@ TossBallAnimation:
 	ld a, BLOCKBALL_ANIM
 	ld [wAnimationID], a
 	jp PlayAnimation
+
+; in: a = palette index to assign to the shared ball-toss tiles ($02, $12 in
+;     the animation tileset) -- ATK_PAL_PURPLE to recolor for a Master Ball
+;     throw, 0 to restore the normal palette afterward
+; clobbers: a, b
+; NOTE: this is called from MoveAnimation, bracketing the ENTIRE call to
+; TossBallAnimation (not from inside it) -- deliberately, so nothing here
+; touches TossBallAnimation's own internals, which previously broke when
+; modified this way (see the loop-structure fix elsewhere in this file).
+; The shake animation (Subanimation09) also uses these same tiles, not just
+; the initial throw, so the purple needs to stay active for the whole
+; capture sequence, not just the toss itself.
+SetTossBallTilesPalette:
+	di ; protect the SVBK switch below -- if a VBlank interrupt fires while
+	   ; WRAM bank 2 is temporarily swapped in, the interrupt handler (which
+	   ; runs constantly during battle) would read/write the wrong WRAM
+	   ; bank, corrupting whatever it touches.
+	push af
+	ldh a, [rSVBK]
+	ld b, a
+	ld a, 2
+	ldh [rSVBK], a
+	pop af
+	ld [W2_SpritePaletteMap+2], a
+	ld [W2_SpritePaletteMap+$12], a
+	inc a ; a is 7 (purple) or 0 (restore) here -- either way this makes it
+	      ; nonzero, which is all W2_ForceOBPUpdate's check requires (a
+	      ; plain 'or a / jr nz'), one byte cheaper than 'ld a, 1'
+	ld [W2_ForceOBPUpdate], a ; without this, W2_SpritePaletteMap alone never
+	                          ; takes visual effect -- the VBlank hook that
+	                          ; actually refreshes the real hardware colors
+	                          ; from it only runs when this is set (or when
+	                          ; the OBP0/OBP1 hardware registers themselves
+	                          ; change, which writing this WRAM table alone
+	                          ; never causes). This is the piece that was
+	                          ; missing every previous attempt.
+	ld a, b
+	ldh [rSVBK], a
+	ei
+	ret
 
 PlayApplyingAttackSound:
 ; play a different sound depending if move is not very effective, neutral, or super-effective

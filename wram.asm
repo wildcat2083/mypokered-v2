@@ -3169,6 +3169,13 @@ wDebugMenu7RowCursor:: ds 1   ; which row (0-6) is selected on the current Addre
                               ; uses for the page number (0-3)
 wDebugMenu7TablePtr:: ds 2    ; cached pointer to the current page's entry table, so
                               ; per-row redraw/select code doesn't need to re-look-it-up
+wThrowingMasterBall:: ds 1    ; set by MoveAnimation only while a Master Ball throw's
+                              ; animation is actively playing, so PlayAnimation can
+                              ; re-apply the purple ball-tile palette every time its own
+                              ; internal LoadAnimationTileset call resets it (which
+                              ; happens on every single subanimation step, including the
+                              ; throw itself -- that's why a one-time palette write from
+                              ; outside PlayAnimation never actually took visual effect)
 
 SECTION "Stack", WRAM0
 
