@@ -14,7 +14,18 @@ SetDefaultNamesBeforeTitlescreen::
 	ldh [hWY], a
 	ld [wLetterPrintingDelayFlags], a
 	ld hl, wd732
+IF DEF(_DEBUG)
+; Keep the debug ("GOD MODE") bit across a return to the title screen, so it
+; stays on until the player starts a normal new game (StartNewGame clears it)
+; or loads a save that was made without it. Everything else in wd732 - play
+; time counting, warp and forced-bike flags - is still cleared as usual.
+	ld a, [hl]
+	and 1 << 1
 	ld [hli], a
+	xor a
+ELSE
+	ld [hli], a
+ENDC
 	ld [hli], a
 	ld [hl], a
 	ld a, BANK(Music_TitleScreen)
