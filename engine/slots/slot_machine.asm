@@ -173,6 +173,11 @@ OneMoreGoSlotMachineText:
 
 SlotMachine_SetFlags:
 	ld hl, wSlotMachineFlags
+IF DEF(_DEBUG)
+; debug builds: always allow 7/BAR matches
+	set 7, [hl]
+	ret
+ENDC
 	bit 7, [hl]
 	ret nz
 	ld a, [wSlotMachineAllowMatchesCounter]
